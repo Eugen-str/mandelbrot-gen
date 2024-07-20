@@ -1,5 +1,7 @@
 module Main where
 
+import Cli
+
 import Codec.Picture
 import System.Environment (getArgs)
 import Control.Monad (when)
@@ -37,18 +39,18 @@ lerp :: Double -> Double -> Double -> Double
 lerp s e t = s * (1 - t) + e * t
 
 iterMandelbrot :: Double -> Double -> Int -> Double -> Double -> (Int, Double, Double)
-iterMandelbrot za zb iter ca cb | (za*za + zb*zb) > 2^8 || iter == maxIterations = (iter, za, zb)
+iterMandelbrot za zb iter ca cb | (za*za + zb*zb) > 256 || iter == maxIterations = (iter, za, zb)
                                 | otherwise = iterMandelbrot newZa newZb (iter + 1) ca cb
     where
         newZa = za*za - zb*zb + ca
         newZb = 2*za*zb + cb
 
--- new idea for colors from: https://stackoverflow.com/questions/16500656/which-color-gradient-is-used-to-color-mandelbrot-in-wikipedia
+-- idea for colors from: https://stackoverflow.com/questions/16500656/which-color-gradient-is-used-to-color-mandelbrot-in-wikipedia
 
 colors :: [PixelRGB8]
 colors = [
       PixelRGB8 66  30  15 -- brown 3
-    , PixelRGB8 25   7  26 -- dark violett
+    , PixelRGB8 25   7  26 -- dark violet
     , PixelRGB8  9   1  47 -- darkest blue
     , PixelRGB8  4   4  73 -- blue 5
     , PixelRGB8  0   7 100 -- blue 4
@@ -75,19 +77,11 @@ lerpColor (PixelRGB8 r1 g1 b1) (PixelRGB8 r2 g2 b2) t = PixelRGB8 (fromIntegral 
         g = lerpPx g1 g2 t
         b = lerpPx b1 b2 t
 
-generateMandelbrot :: Int -> Int -> Int -> Int -> Double -> Double -> Double -> String -> PixelRGB8
-generateMandelbrot x y w h cx cy scale color | nIter == maxIterations = PixelRGB8 0 0 0
-                                             | color == "continous" = colorContinous
-                                             | color == "basic" = hsvToRgb (round(fromIntegral nIter / 100.0 * 360 :: Double)) 100 100
-                                             | otherwise = error "Unreachable code"
+getColorContinous :: Double -> Double -> Int -> PixelRGB8
+getColorContinous za zb nIter = colorContinous
     where
-        mapping = fromIntegral w / fromIntegral h * scale
-        ca = cx + lerp (-mapping) mapping (fromIntegral x / fromIntegral w)
-        cb = cy + lerp (-mapping) mapping (fromIntegral y / fromIntegral h)
-        (nIter, za, zb) = iterMandelbrot ca cb 0 ca cb
-
         log_zn = log(za*za + zb*zb) / 2
-        nu = log(log_zn / log 2) / log 2
+        nu = logBase 2 (log_zn / log 2)
         fracNIter = fromIntegral nIter - nu
         color1 = colors !! (floor fracNIter `mod` length colors)
         color2 = colors !! ((floor fracNIter + 1) `mod` length colors)
@@ -95,59 +89,35 @@ generateMandelbrot x y w h cx cy scale color | nIter == maxIterations = PixelRGB
         (_, t) = properFraction fracNIter :: (Integer, Double)
         colorContinous = lerpColor color1 color2 t
 
-data Option = Str String
-            | Num Double
-            deriving Show
+getColorBasic :: Int -> PixelRGB8
+getColorBasic nIter = hsvToRgb (round(fromIntegral nIter / 100.0 * 360 :: Double)) 100 100
 
-getCli :: [String] -> [(String, Option)]
-getCli [] = []
-getCli args | length args >= 2 = case head args of
-    "-x" -> ("x", Num nextDouble) : getCli rest
-    "-y" -> ("y", Num nextDouble) : getCli rest
-    "-w" -> ("w", Num nextDouble) : getCli rest
-    "-zoom" -> ("scale", Num nextDouble) : getCli rest
-    "-color" -> ("palette", Str next) : getCli rest
-    "-o" -> ("out", Str next) : getCli rest
-    _ -> error "Unknown option"
-            | otherwise = error "Unknown option"
+generateMandelbrot :: Int -> Int -> Int -> Int -> Double -> Double -> Double -> String -> PixelRGB8
+generateMandelbrot x y w h cx cy scale color | nIter == maxIterations = PixelRGB8 0 0 0
+                                             | color == "continous" = colorContinous
+                                             | color == "basic" = colorBasic
+                                             | otherwise = error "Unreachable code"
     where
-        nextDouble = read (head $ tail args) :: Double
-        next = head $ tail args
-        rest = drop 2 args
+        mapping = fromIntegral w / fromIntegral h * scale
+        ca = cx + lerp (-mapping) mapping (fromIntegral x / fromIntegral w)
+        cb = cy + lerp (-mapping) mapping (fromIntegral y / fromIntegral h)
+        (nIter, za, zb) = iterMandelbrot ca cb 0 ca cb
 
-getOption :: String -> [(String, Option)] -> Option
-getOption s [] = case s of
-    "x" -> Num 0
-    "y" -> Num 0
-    "w" -> Num 1000
-    "scale" -> Num 1.5
-    "out" -> Str "test.png"
-    "palette" -> Str "basic"
-    _ -> error $ "Unknown option: " <> s
-getOption s opts | s == optName = optValue
-                 | otherwise = getOption s rest
-    where
-        (optName, optValue) = head opts
-        rest = tail opts
+        colorBasic = getColorBasic nIter
+        colorContinous = getColorContinous za zb nIter
 
-gd :: Option -> Double
-gd (Num x) = x
-gd _ = error "Unreachable code"
 
-gs :: Option -> String
-gs (Str x) = x
-gs _ = error "Unreachable code"
-
-printHelp :: IO()
-printHelp = putStrLn "Mandelbrot generator options:\n\
-    \-x    : starting x\n\
-    \-y    : starting y\n\
-    \-w    : width (and height for now) of the image\n\
-    \-zoom : starting zoom/scaling of the image\n\
-    \-color: the color palette used for the generation\n\
-    \    basic -- basic histogram coloring, the default option\n\
-    \    continous -- basic smoothing\n\
-    \-o    : filename of the generated image"
+generateImageMandelbrot :: [(String, Option)] -> (String, DynamicImage)
+generateImageMandelbrot cliArgs =
+    let
+        w       = round $ gd $ getOption "w" cliArgs
+        cx      = gd $ getOption "x" cliArgs
+        cy      = gd $ getOption "y" cliArgs
+        scale   = gd $ getOption "scale" cliArgs
+        out     = gs $ getOption "out" cliArgs
+        color   = gs $ getOption "palette" cliArgs
+        img     = ImageRGB8 (generateImage (\x y -> generateMandelbrot x y w w cx cy scale color) w w)
+    in (out, img)
 
 main :: IO ()
 main = do
@@ -157,12 +127,5 @@ main = do
         printHelp
         exitSuccess
 
-    let cliArgs = getCli args
-    let w = round $ gd $ getOption "w" cliArgs
-    let cx = gd $ getOption "x" cliArgs
-    let cy = gd $ getOption "y" cliArgs
-    let scale = gd $ getOption "scale" cliArgs
-    let out = gs $ getOption "out" cliArgs
-    let color = gs $ getOption "palette" cliArgs
-    let img = ImageRGB8 (generateImage (\x y -> generateMandelbrot x y w w cx cy scale color) w w)
+    let (out, img) = generateImageMandelbrot $ getCli args
     savePngImage out img
