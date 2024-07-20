@@ -12,7 +12,8 @@ to generate an image with your inputs use `cabal run exes -- [option] [value]...
 
 ---
 
-example:
+
+there are a few examples in `examples/EXAMPLES.md`, but here is a very basic one
 
 ```console
 $ cabal run exes -- -x -0.5762 -y -0.4849 -w 1000 -zoom 0.02 -o example.png
@@ -20,5 +21,5 @@ $ cabal run exes -- -x -0.5762 -y -0.4849 -w 1000 -zoom 0.02 -o example.png
 
 executing that command outputs this file:
 
-![generated mandelbrot set](example.png)
+![generated mandelbrot set](examples/example.png)
 
