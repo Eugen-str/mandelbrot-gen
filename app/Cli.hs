@@ -43,6 +43,13 @@ gs :: Option -> String
 gs (Str x) = x
 gs _ = error "Unreachable code"
 
+{-
+color == "continous" = colorContinous colorsUF
+color == "rainbow" = colorContinous colorsRainbow
+color == "purple" = colorContinous colorsPurple
+color == "brown" = colorContinous colorsBrown
+color == "basic" = colorBasic
+-}
 printHelp :: IO()
 printHelp = putStrLn "Mandelbrot generator options:\n\
     \-x    : starting x\n\
@@ -50,7 +57,10 @@ printHelp = putStrLn "Mandelbrot generator options:\n\
     \-w    : width (and height for now) of the image\n\
     \-zoom : starting zoom/scaling of the image\n\
     \-color: the color palette used for the generation\n\
-    \    basic -- basic histogram coloring, the default option\n\
-    \    continous -- basic smoothing\n\
+    \    basic     -- basic histogram coloring, the default option\n\
+    \    continous -- basic smoothing, with the default colors on Ultra Fractal\n\
+    \    rainbow   -- rainbow colors [WIP, doesn't look great]\n\
+    \    purple    -- purple colors [WIP, doesn't look great]\n\
+    \    brown     -- brown colors [WIP, looks fine]\n\
     \-o    : filename of the generated image"
 

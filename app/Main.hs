@@ -47,8 +47,8 @@ iterMandelbrot za zb iter ca cb | (za*za + zb*zb) > 256 || iter == maxIterations
 
 -- idea for colors from: https://stackoverflow.com/questions/16500656/which-color-gradient-is-used-to-color-mandelbrot-in-wikipedia
 
-colors :: [PixelRGB8]
-colors = [
+colorsUF :: [PixelRGB8]
+colorsUF = [
       PixelRGB8 66  30  15 -- brown 3
     , PixelRGB8 25   7  26 -- dark violet
     , PixelRGB8  9   1  47 -- darkest blue
@@ -67,6 +67,33 @@ colors = [
     , PixelRGB8 106  52   3 -- brown 2
     ]
 
+hexToPixel :: String -> PixelRGB8
+hexToPixel str = PixelRGB8 (fromIntegral r) (fromIntegral g) (fromIntegral b)
+    where
+        r = read ("0x" ++ take 2 str) :: Int
+        g = read ("0x" ++ take 2 ( drop 2 str)) :: Int
+        b = read ("0x" ++ take 2 ( drop 4 str)) :: Int
+
+rainbow :: [String]
+rainbow = ["f94144","f3722c","f8961e","f9c74f","90be6d","43aa8b","577590"]
+
+colorsRainbow :: [PixelRGB8]
+colorsRainbow = map hexToPixel rainbow
+
+brown :: [String]
+brown = ["b76935","a56336","935e38","815839","6f523b","5c4d3c","4a473e","38413f","263c41","143642"]
+colorsBrown :: [PixelRGB8]
+colorsBrown = map hexToPixel brown
+
+colorsPurple :: [PixelRGB8]
+colorsPurple = [
+      PixelRGB8 247 37 133
+    , PixelRGB8 114 9 183
+    , PixelRGB8 58 12 163
+    , PixelRGB8 67 97 238
+    , PixelRGB8 76 201 240
+    ]
+
 lerpPx :: Pixel8 -> Pixel8 -> Double -> Pixel8
 lerpPx s e t = round $ fromIntegral s * (1 - t) + fromIntegral e * t
 
@@ -77,8 +104,8 @@ lerpColor (PixelRGB8 r1 g1 b1) (PixelRGB8 r2 g2 b2) t = PixelRGB8 (fromIntegral 
         g = lerpPx g1 g2 t
         b = lerpPx b1 b2 t
 
-getColorContinous :: Double -> Double -> Int -> PixelRGB8
-getColorContinous za zb nIter = colorContinous
+getColorContinous :: Double -> Double ->  Int -> [PixelRGB8] -> PixelRGB8
+getColorContinous za zb nIter colors = colorContinous
     where
         log_zn = log(za*za + zb*zb) / 2
         nu = logBase 2 (log_zn / log 2)
@@ -94,7 +121,10 @@ getColorBasic nIter = hsvToRgb (round(fromIntegral nIter / 100.0 * 360 :: Double
 
 generateMandelbrot :: Int -> Int -> Int -> Int -> Double -> Double -> Double -> String -> PixelRGB8
 generateMandelbrot x y w h cx cy scale color | nIter == maxIterations = PixelRGB8 0 0 0
-                                             | color == "continous" = colorContinous
+                                             | color == "continous" = colorContinous colorsUF
+                                             | color == "rainbow" = colorContinous colorsRainbow
+                                             | color == "purple" = colorContinous colorsPurple
+                                             | color == "brown" = colorContinous colorsBrown
                                              | color == "basic" = colorBasic
                                              | otherwise = error "Unreachable code"
     where
