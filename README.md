@@ -4,15 +4,21 @@ Generate an image of the Mandelbrot set through the command line
 
 usage:
 
-run with `cabal run mandelbrot.cabal [image_dimension] [x] [y] [zoom]`
+print help with `cabal run exes -- help`
+
+to generate a default image use `cabal run`
+
+to generate an image with your inputs use `cabal run exes -- [option] [value]...`
+
+---
 
 example:
 
 ```console
-$ cabal run mandelbrot.cabal 1000 0.3 0.552 0.1823
+$ cabal run exes -- -x -0.5762 -y -0.4849 -w 1000 -zoom 0.02 -o example.png
 ```
 
-generated image:
+executing that command outputs this file:
 
 ![generated mandelbrot set](example.png)
 
